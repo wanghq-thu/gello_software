@@ -8,7 +8,11 @@ from gello.robots.robot import Robot
 class URRobot(Robot):
     """A class representing a UR robot."""
 
-    def __init__(self, robot_ip: str = "192.168.1.10", no_gripper: bool = False):
+    def __init__(self, robot_ip: str = "192.168.1.10", 
+                 no_gripper: bool = False, 
+                 gripper_type: str = "dex1",
+                 gripper_side: str = "left",):
+        
         import rtde_control
         import rtde_receive
 
@@ -20,15 +24,46 @@ class URRobot(Robot):
             print(robot_ip)
 
         self.r_inter = rtde_receive.RTDEReceiveInterface(robot_ip)
-        if not no_gripper:
-            from gello.robots.robotiq_gripper import RobotiqGripper
+        # if not no_gripper:
+        #     from gello.robots.robotiq_gripper import RobotiqGripper
 
-            self.gripper = RobotiqGripper()
-            # self.gripper.connect(hostname=robot_ip, port=63352) # whq
-            print("gripper connected")
-            # gripper.activate() # whq
+        #     self.gripper = RobotiqGripper()
+        #     # self.gripper.connect(hostname=robot_ip, port=63352) # whq
+        #     print("gripper connected")
+        #     # gripper.activate() # whq
 
-        [print("connect") for _ in range(4)]
+        # [print("connect") for _ in range(4)]
+
+        self._use_gripper = not no_gripper
+
+        if self._use_gripper:
+            if gripper_type == "robotiq":
+                from gello.robots.robotiq_gripper import RobotiqGripper
+
+                self.gripper = RobotiqGripper()
+                self.gripper.connect(
+                    hostname=robot_ip,
+                    port=63352,
+                )
+                self.gripper.activate()
+
+            elif gripper_type == "dex1":
+                from gello.robots.dex1_ros2_gripper import (
+                    Dex1Ros2Gripper,
+                )
+
+                self.gripper = Dex1Ros2Gripper(
+                    side=gripper_side,
+                    q_closed=0.0,
+                    q_open=5.5,
+                    kp=5.0,
+                    kd=0.05,
+                )
+
+            else:
+                raise ValueError(
+                    f"Unsupported gripper type: {gripper_type}"
+                )
 
         self._free_drive = False
         self.robot.endFreedriveMode()
@@ -60,8 +95,8 @@ class URRobot(Robot):
         """
         robot_joints = self.r_inter.getActualQ()
         if self._use_gripper:
-            # gripper_pos = self._get_gripper_pos() # whq
-            gripper_pos = 0
+            gripper_pos = self._get_gripper_pos() # whq
+            # gripper_pos = 0
             pos = np.append(robot_joints, gripper_pos)
         else:
             pos = robot_joints
@@ -86,7 +121,7 @@ class URRobot(Robot):
         )
         if self._use_gripper:
             gripper_pos = joint_state[-1] * 255
-            # self.gripper.move(gripper_pos, 255, 10) # whq
+            self.gripper.move(gripper_pos, 255, 10) # whq
         self.robot.waitPeriod(t_start)
 
     def freedrive_enabled(self) -> bool:
@@ -123,7 +158,7 @@ class URRobot(Robot):
 
 
 def main():
-    robot_ip = "192.168.1.11"
+    robot_ip = "192.168.1.10"
     ur = URRobot(robot_ip, no_gripper=True)
     print(ur)
     ur.set_freedrive_mode(True)
