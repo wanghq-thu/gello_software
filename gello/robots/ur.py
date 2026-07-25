@@ -9,12 +9,15 @@ class URRobot(Robot):
     """A class representing a UR robot."""
 
     def __init__(self, robot_ip: str = "192.168.1.10", 
+                 frequency: float = 125.0,
                  no_gripper: bool = False, 
                  gripper_type: str = "dex1",
                  gripper_side: str = "left",):
         
         import rtde_control
         import rtde_receive
+
+        self.dt = 1.0 / frequency
 
         [print("in ur robot") for _ in range(4)]
         try:
@@ -110,7 +113,8 @@ class URRobot(Robot):
         """
         velocity = 0.5
         acceleration = 0.5
-        dt = 1.0 / 500  # 2ms
+        # dt = 1.0 / 500  # 2ms
+        dt = self.dt  #  CB3系列: 125Hz, 8ms；e-series: 500Hz, 2ms
         lookahead_time = 0.2
         gain = 100
 
